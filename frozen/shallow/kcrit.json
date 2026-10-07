@@ -1,0 +1,28 @@
+{
+  "W": 400,
+  "bootstrap": 600,
+  "exactness": true,
+  "frozen_at": "2026-09-14T13:44:40.152681+00:00",
+  "git_commit": "a55310174c5035343e52c92d39e60f4299af4bd6",
+  "kappa_base": 3.0,
+  "kappa_crit": 29.344615077153993,
+  "kappa_crit_ci": [
+    27.43418786295228,
+    31.702346923001837
+  ],
+  "kappa_delta": 33.472552586338445,
+  "lead_inputs": true,
+  "n_windows": 420,
+  "note": "frozen before the S3 sweep; do not regenerate afterwards",
+  "paradox": true,
+  "regime": "shallow",
+  "regime_overrides": {
+    "beta": 2.0,
+    "v_bar": 1.3,
+    "v_half": 1.3
+  },
+  "seeds": 20,
+  "sweep_max": 44.01692261573099,
+  "v_dither_amplitude": 0.6,
+  "warmup_windows": 60
+}

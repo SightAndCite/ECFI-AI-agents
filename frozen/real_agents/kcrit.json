@@ -1,0 +1,52 @@
+{
+  "C": 2,
+  "W": 40,
+  "deadline": 1.5,
+  "frozen_at": "2026-10-05T17:07:04.648733+00:00",
+  "gate": {
+    "baseline_stable": true,
+    "corr_uv": true,
+    "held_out_q": true,
+    "held_out_u": false,
+    "kappa_crit_usable": true,
+    "r2_q": true,
+    "r2_u": false,
+    "signs_bcef": true
+  },
+  "gate_passed": false,
+  "git_commit": "3dbd23ab9b474f17b733af573e4f302cc84b8df4",
+  "grid": [
+    0.0,
+    4.1193374718423845,
+    6.590939954947816,
+    8.238674943684769,
+    10.298343679605962,
+    13.181879909895631
+  ],
+  "grid_is_fallback": false,
+  "kappa_base": 1.0,
+  "kappa_crit": 8.238674943684769,
+  "kappa_crit_ci": [
+    5.415170212879519,
+    17.48412348267235
+  ],
+  "model": "qwen2.5:3b",
+  "n_windows": 135,
+  "note": "frozen before the S7 sweep; do not regenerate afterwards",
+  "p_dep": 0.5,
+  "params": {
+    "a": 0.22269460512853087,
+    "b": 0.0056119804531608595,
+    "c": 0.14215981022426558,
+    "d": 0.358062793345744,
+    "e": 0.30233464350367717,
+    "f": 1.4755984844155783
+  },
+  "rate": 2.5,
+  "seeds": [
+    101,
+    102,
+    103
+  ],
+  "v_bar": 0.4
+}
