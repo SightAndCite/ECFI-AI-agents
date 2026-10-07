@@ -196,69 +196,6 @@ relative to its actuation, and it must be stated rather than assumed.**
 
 ---
 
-## Findings from the runs in `results/`
-
-Reproduced with 8 seeds on 2 cores; re-run at 20 seeds before quoting in the
-paper.
-
-**S1 — the pathway exists, and it decomposes.** Under randomised background
-load (0 → 3), p95 verification wait rises ~10×. In `WAIT`, objective error is
-flat (Δ = −0.0007): pure queueing does not damage correctness. In
-`RESOURCE_COUPLED`, error rises by +0.0112. With the store disabled it rises by
-only +0.0054 — so `b` splits into a *direct* fallback term (same window, weaker
-model) and a *propagated* term (the shared context store carries the damage
-forward). Only the second is the cross-window pathway the local model's `b`
-represents.
-
-**S2 — identification is well conditioned.** `corr(u,v) ≈ 0.28–0.48`, condition
-numbers 4–7, `R²(u) ≈ 0.44–0.52`, `R²(q) ≈ 0.50–0.63`. All six couplings come
-out positive; the exactness condition `c(1−d) ≥ bf` and the paradox condition
-both hold in both regimes.
-
-| regime  | κ̂_crit | 95% CI          |
-|---------|--------|-----------------|
-| steep   | 4.281  | [4.072, 4.498]  |
-| shallow | 29.747 | [26.32, 33.60]  |
-
-**S3 — the prediction is real but conservative, and how conservative depends on
-the regime.** Every H4 precursor fires on approach: lag-1 autocorrelation of
-`u_k` descends to −0.91, variance is amplified ~11×, and the online margin
-`M = 1 − ρ(Â)` falls from 0.80 to 0.082. Two *threshold-free* endpoints — the
-margin knee and the critical-slowing-down extrapolation of the variance — agree
-to within 2%.
-
-| regime  | observed κ\* / predicted κ̂_crit |
-|---------|---------------------------------|
-| steep   | **0.744 ± 0.021** (3 load factors) |
-| shallow | **0.470 ± 0.069**, degrading with load (0.53 → 0.39) |
-
-The transition arrives **earlier** than predicted — the linear model reports
-more headroom than the system has, which is the unsafe direction — and the
-prediction is much better when over-correction dominates than when congestion
-does. That is a usable statement about when the linearization may be trusted.
-
-**A detector caveat worth publishing.** The store-disabled negative control is
-*not* a valid null for a spectral flip detector: disabling the store removes the
-epistemic propagation path, but leaves the corrective feedback loop intact, so
-the control alternates too. It controls `b`, not the loop. The threshold-free
-endpoints exist because of this.
-
-**S4 — amplification shows up in congestion, not in tokens.** With
-`amb_true_boost = 0` the strategic workload raises apparent uncertainty without
-raising difficulty. Token-side amplification has a closed form,
-`𝒜_E(tokens) = κu/v`, and stays below 1 while nominal effort dominates. Queue
-occupancy and tail latency are convex in load, so their amplification is far
-larger. Reporting all three keeps "more tokens" distinct from "a congestion
-event."
-
-**S5 — the congestion-aware controller trades, it does not dominate.** At
-κ = 1.25 κ̂_crit, sweeping γ from 0 to 200 cuts p95 wait by 25% and raises the
-margin by 37%, at a 12% cost in objective error. In this configuration no γ
-bought stability at ≤ 2% quality loss. Reporting the frontier rather than a
-single "mitigation works" number is the honest form of this result.
-
----
-
 ## S6 — real LLM agents, a real shared verifier
 
 S1–S5 run on the simulator. `s6_real_agents.py` asks S1's question of real
@@ -291,74 +228,21 @@ against synthetic competing traffic. It is a correction-service experiment.
 | fallback | `wait`: no deadline. `skip`: a request not started within `D = 1.5 s` is **cancelled and leaves the queue** (it never occupies capacity) and the unverified answer is returned. A verification that has started is never cut off |
 | controls | tasks, arrivals and verification draws matched across arms within a seed; arm order randomised per seed; pool drained between arms |
 
-"Completed" below counts completed *verifications*; every task completes in
+In the results, "completed" counts completed *verifications*; every task completes in
 every arm. Waits of abandoned requests enter at the time they gave up.
 Latency runs from an agent's arrival to its final answer and excludes the
 precomputed answering call.
 
-**Result** — 5 independent seeds, 100 tasks per arm, mean (sd across seeds).
-Unverified, the model gets 66% (5%) of these tasks wrong.
+**Scope.** One model, one machine, one task family, low concurrency, synthetic
+competing traffic, and no shared context store — so this tests the *direct*
+fallback term of `b`, not the propagated one, and makes no claim about
+`κ̂_crit`.
 
-| arm | error | verify calls | completed | timeouts | wait mean (s) | p95 latency (s) | agents in flight, mean / max | slot held by tenants |
-|-----|-------|--------------|-----------|----------|---------------|-----------------|------------------------------|----------------------|
-| always / wait / low  | 0.310 (0.034) | 100  | 100  | 0    | 0.48 | 2.8  | 0.85 / 4.4  | 0    |
-| always / wait / high | 0.310 (0.034) | 100  | 100  | 0    | 5.62 | 14.5 | 3.87 / 13.0 | 0.38 |
-| always / skip / low  | 0.324 (0.033) | 100  | 95.8 | 4.2  | 0.37 | 2.0  | 0.77 / 4.2  | 0    |
-| always / skip / high | 0.396 (0.053) | 100  | 70.6 | 29.4 | 0.81 | 2.2  | 0.91 / 4.4  | 0.40 |
-| proportional / skip / low  | 0.320 (0.044) | 70.6 | 69.0 | 1.6  | 0.25 | 1.8 | 0.50 / 3.6 | 0    |
-| proportional / skip / high | 0.378 (0.059) | 70.6 | 54.6 | 16.0 | 0.67 | 2.1 | 0.60 / 3.8 | 0.40 |
-| aware / skip / low   | 0.320 (0.043) | 70.2 | 68.8 | 1.4  | 0.23 | 1.7 | 0.48 / 3.6 | 0    |
-| aware / skip / high  | 0.384 (0.063) | 66.0 | 53.2 | 12.8 | 0.60 | 1.9 | 0.55 / 3.4 | 0.40 |
+The design and decision rule are in `frozen/prereg.md` (addendum 2). Results:
+`results/s6_real_agents.json`; an earlier single-seed pilot on `qwen3:8b` is
+`results/s6_pilot_qwen3_8b.json`.
 
-* **Shared-verifier congestion raises error when agents fall back to
-  unverified answers, and only then.** Under `wait`, load multiplies the mean
-  wait by twelve and leaves error exactly unchanged in every seed. Under
-  `skip`, the same load turns 29% of requests into timeouts and error rises
-  from 0.324 to 0.396. Seed-level difference-in-differences:
-  `+0.07, +0.08, +0.12, +0.03, +0.06`; mean **+0.072, 95% CI [+0.031, +0.113]**
-  (t, 4 df), p = 0.008. The pre-registered rule (mean > 0.05, differs from
-  zero at α = 0.05) is met. The interval's lower end is below 0.05: the effect
-  is reliably positive, its size is not pinned down by five seeds.
-* **The verifier is a real, fallible one.** Over 500 always-verified tasks it
-  fixed 201 of 330 wrong answers and broke 28 of 170 right ones, taking error
-  from 0.66 to 0.31. It always returned a parseable answer.
-* **Selective verification is cheaper and, under load, slightly better.**
-  `proportional` makes 29 fewer calls per 100 than `always`. At low load its
-  error is indistinguishable from `always`; at high load it is 1.8 points
-  lower in the paired comparison, with 13 fewer timeouts.
-* **The congestion-aware law sheds a little more and does not change error.**
-  `γ = 1` removes about 5 further requests per 100 under load and 3 timeouts;
-  error is indistinguishable from `proportional`.
-
-Policy comparison under `skip`: paired seed-level differences, mean and 95% CI
-(t, 4 df, n = 5 seeds), not corrected for multiple comparisons.
-
-| comparison | load | Δ error | Δ verify calls | Δ timeouts | Δ mean latency (s) |
-|------------|------|---------|----------------|------------|--------------------|
-| proportional − always | low  | −0.004 [−0.030, +0.022] | −29.4 [−37.0, −21.8] | −2.6 [−4.5, −0.7]   | −0.44 [−0.57, −0.30] |
-| proportional − always | high | −0.018 [−0.032, −0.004] | −29.4 [−37.0, −21.8] | −13.4 [−19.6, −7.2] | −0.50 [−0.58, −0.41] |
-| aware − proportional  | low  | 0.000 [−0.009, +0.009]  | −0.4 [−1.1, +0.3]    | −0.2 [−0.8, +0.4]   | −0.03 [−0.06, 0.00]  |
-| aware − proportional  | high | +0.006 [−0.005, +0.017] | −4.6 [−8.2, −1.0]    | −3.2 [−6.0, −0.4]   | −0.08 [−0.14, −0.03] |
-| aware − always        | high | −0.012 [−0.026, +0.002] | −34.0 [−43.5, −24.5] | −16.6 [−24.8, −8.4] | −0.58 [−0.69, −0.47] |
-
-Both selective policies saturate: with `κ = 4`, 64% of tasks have `û ≥ 0.25`
-and are verified with certainty, and 20% have `û ≈ 0` and never are. The
-uncertainty signal is informative but imperfect (mean `û` 0.57 on wrong
-answers, 0.12 on right ones; 13% of wrong answers fall below 0.25).
-
-**What this does not show.** One model, one machine, one task family, low
-concurrency (about one agent in flight on average outside the saturated `wait`
-arm), synthetic competing traffic, and no shared context store — so this is
-the *direct* fallback term of `b`, not the propagated one. It supports the
-narrow claim in the first bullet. It does not establish feedback instability
-and says nothing about `κ̂_crit`.
-
-The design and decision rule are in `frozen/prereg.md` (addendum 2), written
-before the run. An earlier single-seed run on `qwen3:8b` with a fixed arm order
-and shared answering is kept as `results/s6_pilot_qwen3_8b.json`; it is a
-pilot and is superseded by the above.
-
-## S7 — closed loop on real agents: the boundary was not reproduced
+## S7 — closed loop on real agents
 
 S6 has no feedback. `s7_real_loop.py` closes the loop on the same real
 components and runs identify → freeze → sweep on it, reusing `ecfi.identify`
@@ -382,61 +266,8 @@ python experiments/s7_real_loop.py sweep    --ollama http://127.0.0.1:11435/api/
 | service capacity | `C = 2` live verifier slots (≈ 1.9 verifications/s), fixed; arrivals 2.5 tasks/s; deadline 1.5 s, then the unverified answer stands |
 | real / not real | verification calls, queueing, timeouts, store and policy are live; direct answers are replayed from a bank answered once by the same model; background tenants are synthetic |
 
-**Identification** (3 runs × 120 windows, `κ = 1`, hard-task bursts +
-background pulses + dithered `v̄`):
-
-| | a | b | c | d | e | f |
-|--|---|---|---|---|---|---|
-| estimate | 0.223 | 0.006 | 0.142 | 0.358 | 0.302 | 1.476 |
-| 95% CI | 0.11, 0.32 | −0.01, 0.02 | 0.07, 0.22 | 0.28, 0.43 | −0.22, 0.75 | 1.16, 1.79 |
-
-`R²(q) = 0.39` (held out: 0.33, 0.39, 0.42). **`R²(u) = 0.049`** (held out:
-−0.02, 0.06, 0.07). The model is stable at `κ = 0` and all signs are as
-Theorem 1 assumes, but **the pre-registered validity gate fails on the error
-equation**, and `b` and `e` are not distinguishable from zero. Frozen
-regardless, as registered: **`κ̂_crit = 8.24`, 95% CI [5.42, 17.48]**.
-
-**Sweep** (3 independent seeds per gain, 80 windows each; mean, with the 95%
-t half-width over seeds where shown):
-
-| κ | κ/κ̂ | error | timeouts | lag-1 acf of `u` | variance ratio | Nyquist share of `v` | fitted margin | predicted margin | windows saturated |
-|---|------|-------|----------|------------------|----------------|----------------------|---------------|------------------|-------------------|
-| 0     | 0    | 0.653 | 0.02 | +0.15 ± 0.25 | 1.00 | 0.00 | +0.75 | +0.63 | 0%  |
-| 4.12  | 0.50 | 0.668 | 0.07 | −0.33 ± 0.18 | 0.87 | 0.00 | +0.64 | +0.59 | 10% |
-| 6.59  | 0.80 | 0.659 | 0.15 | −0.40 ± 0.07 | 1.04 | 0.02 | +0.65 | +0.24 | 20% |
-| 8.24  | 1.00 | 0.662 | 0.14 | −0.47 ± 0.12 | 1.32 | 0.17 | +0.51 | 0.00  | 37% |
-| 10.30 | 1.25 | 0.662 | 0.14 | −0.47 ± 0.22 | 1.13 | 0.04 | +0.57 | −0.29 | 36% |
-| 13.18 | 1.60 | 0.667 | 0.16 | −0.38 ± 0.11 | 1.29 | 0.06 | +0.65 | −0.71 | 43% |
-
-* **No crossing.** The registered criterion (negative lag-1 autocorrelation
-  with its interval excluding zero *and* variance ratio ≥ 2) is met at no
-  gain: the variance ratio peaks at 1.32. Reported as absence of crossing.
-* **The over-correction signature is there; the instability is not.** Turning
-  the feedback on flips the lag-1 autocorrelation of error from +0.15 to
-  between −0.33 and −0.47, with intervals excluding zero at every non-zero
-  gain. It does not deepen past 0.8 κ̂, and variance does not grow.
-* **The linear prediction fails above the boundary.** Predicted margin falls
-  to 0 at κ̂ and to −0.71 at 1.6 κ̂; the fitted margin stays between +0.51 and
-  +0.65. At 0.5 κ̂ the two agree (+0.64 vs +0.59).
-* **Why, as far as this run can say.** `v` is a probability. At and above κ̂
-  it sits at 0 or 1 in 36–43% of windows, so the effective gain stops rising.
-  And window noise in `u` (sd ≈ 0.09) is large against what verification can
-  move (`c = 0.14` per unit of effort), which is also why `R²(u)` is 0.05.
-* **Higher gain bought congestion, not accuracy.** Timeouts rise from 2% to
-  14–16%; mean error does not improve (0.653 at κ = 0, 0.66–0.67 above).
-* **Two readouts not to be quoted.** The margin knee lands at 8.10 (ratio
-  0.98), but with no crossing that is the location of a noisy minimum, not
-  agreement. The variance extrapolation (76) is meaningless on a curve that
-  never rises.
-
-**Standing.** The gate failed, so by the registered rule this is a scope limit
-of the local model on this system and neither supports nor refutes Theorem 1.
-What it does show: with a bounded actuator and noisy 40-task windows, real
-agents on this testbed did not reach the predicted flip. The boundary
-prediction remains validated in simulation only. A fair retest would need a
-graded effort variable with headroom and windows several times larger —
-roughly a tenfold longer run. Frozen prediction: `frozen/real_agents/`; data:
-`results/s7_identify.json`, `results/s7_sweep.json`.
+Results: `results/s7_identify.json`, `results/s7_sweep.json`. Frozen prediction:
+`frozen/real_agents/`.
 
 ---
 
