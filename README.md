@@ -1,15 +1,85 @@
+<div align="center">
+
 # ECFI — Epistemic–Compute Feedback Instability
+
+**When AI agents share a verifier, more checking can make the whole system less reliable.**
+
+[![Python](https://img.shields.io/badge/python-%E2%89%A53.10-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)](tests/)
+[![CPU only](https://img.shields.io/badge/GPU-not%20required-lightgrey)](#performance-and-troubleshooting)
+[![Pre-registered](https://img.shields.io/badge/predictions-pre--registered-8A2BE2)](frozen/prereg.md)
+
+[The paradox](#the-paradox-in-one-picture) ·
+[Mechanism](#core-mechanism) ·
+[Theory](#the-local-model-and-theorem-1) ·
+[Benchmark](#the-benchmark-s1s5) ·
+[Quickstart](#quickstart) ·
+[Real LLM agents](#s6--real-llm-agents-a-real-shared-verifier)
+
+</div>
+
+---
+
+Multi-agent LLM systems routinely verify answers they are unsure about: ask a
+critic, re-run a tool, call a checker. Each check makes *that* answer better.
+But the checkers are a **shared, capacity-limited service**. Push verification
+hard enough and the queue fills, deadlines expire, answers slip through
+unverified, wrong answers feed into other agents' context, and uncertainty rises
+again — which triggers even more verification.
+
+ECFI is that loop. This repository gives you:
+
+- **A theory** — a two-state local model and **Theorem 1**, a closed-form upper
+  bound `κ_crit` on how aggressively a system can verify before it loses
+  stability.
+- **A testbed** — a discrete-event simulator of agents, a verifier pool and a
+  shared context store, with every coupling switchable and ground truth known.
+- **A benchmark** — five pre-registered stages (S1–S5) that identify the local
+  parameters, **freeze** a prediction of `κ̂_crit`, and only then sweep the
+  system to see whether the prediction holds.
+- **Real-agent experiments** (S6–S7) that ask the same questions of real LLM
+  calls competing for a real LLM verifier.
+
+## The paradox in one picture
+
+<p align="center">
+  <img src="figs/fig_theory_paradox.png" alt="Left: the static equilibrium error falls monotonically as verification gain increases. Right: the spectral radius of the closed-loop system crosses 1 at kappa_crit, so the system becomes unstable." width="100%">
+</p>
+
+> **(a)** Turn up the verification gain `κ` and the steady-state error `u*`
+> keeps falling — a static analysis says *verify more*.
+> **(b)** The same system's spectral radius `ρ(A(κ))` crosses 1 at `κ_crit`:
+> the equilibrium still looks better, but the loop can no longer reach it.
+> Past this point the system over-corrects and oscillates.
+> *(Illustrative parameters from `ecfi.linear.ILLUSTRATIVE`.)*
 
 ## Core Mechanism
 
-1. Uncertainty & Verification: When an agent encounters uncertain evidence or conflicting sources, it requests proof or verification from a shared service.
-2. Congestion: Increased verification demand saturates the shared verifiers, leading to queueing and compute capacity limits.
-3. Epistemic Degradation: As queue waits increase and deadlines pass, answers escape unchecked via unverified fallbacks, causing error propagation and higher future uncertainty across the network.
+```mermaid
+flowchart LR
+    U(["Epistemic uncertainty<br/>u_k"])
+    V(["Verification demand<br/>v_k = κ·u_k"])
+    Q(["Verifier congestion<br/>q_k"])
 
-ECFI contains three things: the analytical core (Theorem 1 and the
-verification–congestion paradox), a discrete-event testbed whose couplings are
-switchable and whose ground truth is known, and the five-stage benchmark
-(S1–S5) run end to end on that testbed.
+    U -- "agents ask for proof" --> V
+    V -- "catches errors  (−c)" --> U
+    V -- "occupies shared verifiers  (+f)" --> Q
+    U -- "uncertainty costs compute  (+e)" --> Q
+    Q -- "deadlines expire → unverified fallback,<br/>errors spread via shared context  (+b)" --> U
+
+    style U fill:#fde7d9,stroke:#D55E00,color:#1a1a1a
+    style V fill:#d9f2ea,stroke:#009E73,color:#1a1a1a
+    style Q fill:#dbe9f6,stroke:#0072B2,color:#1a1a1a
+```
+
+1. **Uncertainty & verification.** When an agent meets uncertain evidence or
+   conflicting sources, it requests proof or verification from a shared service.
+2. **Congestion.** Rising verification demand saturates the shared verifiers,
+   producing queueing and hitting compute capacity limits.
+3. **Epistemic degradation.** As waits grow and deadlines pass, answers escape
+   unchecked through unverified fallbacks. Errors propagate through shared
+   context and raise *future* uncertainty across the network — closing the loop.
 
 The point of the testbed is **not** to show that ECFI happens. It is to test
 whether a `κ̂_crit` computed from *independently identified* local parameters
@@ -17,80 +87,42 @@ predicts the transition of a *nonlinear* event-driven system **out of sample**.
 If the methodology fails here, where every mechanism is known and controllable,
 it cannot be trusted on live infrastructure.
 
----
+## The local model and Theorem 1
 
-## Install
+Around an operating point, error `u` and congestion `q` evolve as
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .            # or: pip install -r requirements.txt
-python3 -m pytest -q        # 32 tests, ~15 s
+```math
+\begin{aligned}
+u_{k+1} &= a\,u_k + b\,q_k - c\,v_k + \xi_k \\
+q_{k+1} &= d\,q_k + e\,u_k + f\,v_k + \eta_k
+\end{aligned}
+\qquad v_k = \kappa\,u_k
 ```
 
-Python ≥ 3.10. Dependencies: numpy, scipy, simpy, matplotlib, sympy.
+| symbol | meaning |
+|--------|---------|
+| `a` | persistence of epistemic error |
+| `b` | congestion → future epistemic degradation — **the ECFI pathway** |
+| `c` | direct epistemic benefit of verification |
+| `d` | persistence of congestion |
+| `e` | compute induced by uncertainty |
+| `f` | computational cost of verification |
 
-**There is no GPU path and none is needed.** A discrete-event simulation is a
-single-threaded event loop; it is CPU-bound and memory-light. What buys
-wall-clock is **cores**, because replications and sweep cells are independent
-and are farmed out with `multiprocessing`. Every script takes `--jobs N`.
+**Theorem 1.** With `b, c, e, f > 0`, `d > −1` and `A(0)` Schur stable, every
+stable uncertainty-proportional policy satisfies
 
-**The default is every CPU this process is allowed to use.** That is read from
-`sched_getaffinity`, not `os.cpu_count()`, so a container, cgroup, `taskset` or
-Slurm allocation is respected — a job pinned to 4 CPUs on a 96-core node starts
-4 workers, not 96. Each worker is also pinned to a single BLAS thread, because
-one thread per core *inside* every worker would be N² threads fighting over N
-cores. Two cases where you may still want to pass `--jobs` explicitly:
-
-* **SMT / hyper-threading.** The default counts *logical* CPUs. For pure-Python
-  event loops the sibling threads add roughly 10–20%, not 2×, so
-  `--jobs <physical cores>` gives up very little and leaves the machine usable.
-* **Sharing the machine.** Nothing here yields; it will use what you give it.
-
-Measured: the full `run_all.sh` at 20 seeds takes about **1 hour on 2 cores**
-and about **10 minutes on 16 cores**. The S3 sweeps are most of it.
-
-## If a parallel run fails and a serial one does not
-
-Run `python experiments/diagnose.py` first. It prints which `ecfi` is imported
-from where, checksums the modules, and then runs the simulation serially, on two
-workers, and at full width — so a failure is immediately attributable.
-
-Under `spawn` (Windows, macOS) each worker is a fresh interpreter that imports
-the package from scratch. A cold bytecode cache plus many simultaneous workers
-can leave one of them reading a `.pyc` that another is still writing, and
-executing a partially written `.pyc` produces nonsense: `SystemError: unknown
-opcode`, or an `AttributeError` on a value that could not possibly hold it. The
-package now compiles its own cache once, in the parent, before any worker
-starts, and workers are set read-only towards it. If it still happens:
-
-```bash
-# rule out the cache entirely
-PYTHONDONTWRITEBYTECODE=1 python experiments/s1_gonogo.py --jobs 8
-#   PowerShell:  $env:PYTHONDONTWRITEBYTECODE=1
-
-# confirm the simulation is healthy
-python experiments/s1_gonogo.py --jobs 1 --seeds 2
+```math
+\kappa \;<\; \kappa_{\mathrm{crit}} \;=\; \frac{(1+a)(1+d) - b\,e}{c\,(1+d) + b\,f}.
 ```
 
-and check that on-access virus scanning or cloud sync is not watching the
-project folder — both can hand a reader a short read of a file another process
-is writing.
+If additionally `0 ≤ a, d < 1` and `c(1−d) ≥ bf`, the bound is exact and an
+eigenvalue reaches −1 at `κ_crit`: a **flip (period-doubling) bifurcation**.
+The implementation, Jury conditions and stability margin are in
+[`ecfi/linear.py`](ecfi/linear.py).
 
-## Run everything
+## The benchmark (S1–S5)
 
-```bash
-JOBS=16 SEEDS=20 ./run_all.sh
-```
-
-Results land in `results/*.json`, figures in `figs/*.pdf`, and the frozen
-predictions in `frozen/<regime>/`. Both ship empty: a freeze is a record of
-*your* prediction and must be produced on the machine that runs the study.
-Reference output from the development run is in `examples/demo-run-8seeds/`,
-outside every path a script reads.
-
----
-
-## The order is the method
+### The order is the method
 
 ```
 S1  go/no-go       is there a causal congestion → epistemic pathway (b > 0)?
@@ -105,6 +137,78 @@ re-run afterwards. `s2_identify.py` refuses to overwrite an existing freeze
 without `--refreeze`, and `s3_sweep.py` refuses to start without one. The
 freeze records a UTC timestamp and the git commit; commit and tag
 `frozen/` before sweeping so the ordering is verifiable by someone else.
+
+The figures below come from the reference development run
+([`examples/demo-run-8seeds/`](examples/demo-run-8seeds/)). Regenerate them from
+your own results with `python experiments/make_figures.py`.
+
+### S1 — Does congestion actually hurt correctness?
+
+<p align="center">
+  <img src="figs/fig_s1_gonogo.png" alt="S1 go/no-go: objective error rate and p95 verification wait versus exogenous background load for the Wait, Resource-coupled, and Resource-coupled with store off arms." width="100%">
+</p>
+
+> The same background load, three ways of absorbing it. In **`WAIT`** the
+> system pays in latency and correctness stays flat — queueing alone is
+> harmless. In **`RESOURCE_COUPLED`** expired deadlines fall back to unverified
+> answers and error climbs with load. Switching the **shared context store off**
+> removes the propagated part of `b` — the internal negative control.
+
+### S3 — Early warnings before the boundary
+
+<p align="center">
+  <img src="figs/fig_s3_precursors.png" alt="S3 precursors in the steep and shallow regimes: stability margin, lag-1 autocorrelation and variance amplification as functions of kappa over the frozen kappa_crit, for three load factors." width="100%">
+</p>
+
+> Sweeping `κ` toward the **frozen** `κ̂_crit` (dashed line) in two regimes and
+> three load levels. The online stability margin `M = 1 − ρ(Â)` collapses, the
+> lag-1 autocorrelation of error turns sharply negative — the period-two
+> alternation a flip bifurcation predicts — and variance is amplified. These
+> precursors can be read from monitoring data *before* the system tips. How far
+> the observed transition lands from the frozen prediction is measured, not
+> assumed: see `results/s3_endpoints.json`.
+
+### S5 — Mitigation is a frontier, not a free lunch
+
+<p align="center">
+  <img src="figs/fig_s5_frontier.png" alt="S5: quality-latency frontier traced by congestion-aware damping gamma, and the stability margin as gamma increases." width="100%">
+</p>
+
+> A congestion-aware policy `v = κu / (1 + γq)` backs off when the verifier
+> queue is long. Increasing `γ` cuts tail latency and buys stability margin, at
+> a price in objective error. ECFI reports the whole frontier instead of a
+> single "mitigation works" number.
+
+All six figures, including the S3 prediction-ratio plot and the S4
+amplification plot, are in [`figs/`](figs/).
+
+---
+
+## Quickstart
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .            # or: pip install -r requirements.txt
+python3 -m pytest -q        # 32 tests, ~15 s
+```
+
+Python ≥ 3.10. Dependencies: numpy, scipy, simpy, matplotlib, sympy.
+**No GPU needed** — see [Performance and troubleshooting](#performance-and-troubleshooting).
+
+### Run everything
+
+```bash
+JOBS=16 SEEDS=20 ./run_all.sh
+```
+
+Results land in `results/*.json`, figures in `figs/*.pdf`, and the frozen
+predictions in `frozen/<regime>/`. Both ship empty: a freeze is a record of
+*your* prediction and must be produced on the machine that runs the study.
+Reference output from the development run is in `examples/demo-run-8seeds/`,
+outside every path a script reads.
+
+The full `run_all.sh` at 20 seeds takes about **1 hour on 2 cores** and about
+**10 minutes on 16 cores**. The S3 sweeps are most of it.
 
 ---
 
@@ -305,3 +409,57 @@ and must be published if observed:
 Poor identification fit is a scope limit of the local model, not support for it.
 `s2_identify.py` prints a warning rather than failing silently when the fit is
 weak or the excitation is poor.
+
+---
+
+## Performance and troubleshooting
+
+**There is no GPU path and none is needed.** A discrete-event simulation is a
+single-threaded event loop; it is CPU-bound and memory-light. What buys
+wall-clock is **cores**, because replications and sweep cells are independent
+and are farmed out with `multiprocessing`. Every script takes `--jobs N`.
+
+**The default is every CPU this process is allowed to use.** That is read from
+`sched_getaffinity`, not `os.cpu_count()`, so a container, cgroup, `taskset` or
+Slurm allocation is respected — a job pinned to 4 CPUs on a 96-core node starts
+4 workers, not 96. Each worker is also pinned to a single BLAS thread, because
+one thread per core *inside* every worker would be N² threads fighting over N
+cores. Two cases where you may still want to pass `--jobs` explicitly:
+
+* **SMT / hyper-threading.** The default counts *logical* CPUs. For pure-Python
+  event loops the sibling threads add roughly 10–20%, not 2×, so
+  `--jobs <physical cores>` gives up very little and leaves the machine usable.
+* **Sharing the machine.** Nothing here yields; it will use what you give it.
+
+### If a parallel run fails and a serial one does not
+
+Run `python experiments/diagnose.py` first. It prints which `ecfi` is imported
+from where, checksums the modules, and then runs the simulation serially, on two
+workers, and at full width — so a failure is immediately attributable.
+
+Under `spawn` (Windows, macOS) each worker is a fresh interpreter that imports
+the package from scratch. A cold bytecode cache plus many simultaneous workers
+can leave one of them reading a `.pyc` that another is still writing, and
+executing a partially written `.pyc` produces nonsense: `SystemError: unknown
+opcode`, or an `AttributeError` on a value that could not possibly hold it. The
+package now compiles its own cache once, in the parent, before any worker
+starts, and workers are set read-only towards it. If it still happens:
+
+```bash
+# rule out the cache entirely
+PYTHONDONTWRITEBYTECODE=1 python experiments/s1_gonogo.py --jobs 8
+#   PowerShell:  $env:PYTHONDONTWRITEBYTECODE=1
+
+# confirm the simulation is healthy
+python experiments/s1_gonogo.py --jobs 1 --seeds 2
+```
+
+and check that on-access virus scanning or cloud sync is not watching the
+project folder — both can hand a reader a short read of a file another process
+is writing.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
