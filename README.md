@@ -51,8 +51,6 @@ ECFI is that loop. This repository gives you:
 > keeps falling — a static analysis says *verify more*.
 > **(b)** The same system's spectral radius `ρ(A(κ))` crosses 1 at `κ_crit`:
 > the equilibrium still looks better, but the loop can no longer reach it.
-> Past this point the system over-corrects and oscillates.
-> *(Illustrative parameters from `ecfi.linear.ILLUSTRATIVE`.)*
 
 ## Core Mechanism
 
