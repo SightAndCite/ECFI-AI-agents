@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use ECFI in your research, please cite the paper below."
+title: "ECFI: Epistemic-Compute Feedback Instability"
+type: software
+license: MIT
+repository-code: "https://github.com/SightAndCite/ECFI-AI-agents"
+authors:
+  - family-names: Sahinoglu
+    given-names: Zafer
+  - family-names: Kazangirler
+    given-names: Buse Yaren
+  - family-names: Mohammed
+    given-names: Abdulazeez
+  - family-names: Kazangirler
+    given-names: Cahit Berkay
+preferred-citation:
+  type: conference-paper
+  title: "Epistemic-Compute Feedback Instability in Networked AI Agents"
+  authors:
+    - family-names: Sahinoglu
+      given-names: Zafer
+    - family-names: Kazangirler
+      given-names: Buse Yaren
+    - family-names: Mohammed
+      given-names: Abdulazeez
+    - family-names: Kazangirler
+      given-names: Cahit Berkay
+  collection-title: "NANDA Workshop at the IEEE International Conference on Trust, Privacy and Security in Intelligent Systems and Applications (IEEE TPS 2026)"
+  conference:
+    name: "IEEE TPS 2026 — NANDA Workshop"
+  year: 2026

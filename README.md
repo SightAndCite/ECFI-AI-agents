@@ -9,13 +9,18 @@
 [![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)](tests/)
 [![CPU only](https://img.shields.io/badge/GPU-not%20required-lightgrey)](#performance-and-troubleshooting)
 [![Pre-registered](https://img.shields.io/badge/predictions-pre--registered-8A2BE2)](frozen/prereg.md)
+[![IEEE TPS 2026](https://img.shields.io/badge/IEEE%20TPS%202026-NANDA%20Workshop-00629B)](#citation)
+
+📣 **Presented at the NANDA Workshop, IEEE TPS 2026** —
+*Research Session 2: Testbeds & Network Dynamics*
 
 [The paradox](#the-paradox-in-one-picture) ·
 [Mechanism](#core-mechanism) ·
 [Theory](#the-local-model-and-theorem-1) ·
 [Benchmark](#the-benchmark-s1s5) ·
 [Quickstart](#quickstart) ·
-[Real LLM agents](#s6--real-llm-agents-a-real-shared-verifier)
+[Real LLM agents](#s6--real-llm-agents-a-real-shared-verifier) ·
+[Cite](#citation)
 
 </div>
 
@@ -457,6 +462,25 @@ project folder — both can hand a reader a short read of a file another process
 is writing.
 
 ---
+
+## Citation
+
+If you use ECFI, the testbed or the benchmark in your work, please cite:
+
+```bibtex
+@inproceedings{sahinoglu2026ecfi,
+  title     = {Epistemic-Compute Feedback Instability in Networked {AI} Agents},
+  author    = {Sahinoglu, Zafer and Kazangirler, Buse Yaren and
+               Mohammed, Abdulazeez and Kazangirler, Cahit Berkay},
+  booktitle = {NANDA Workshop at the IEEE International Conference on Trust,
+               Privacy and Security in Intelligent Systems and Applications
+               (IEEE TPS 2026)},
+  year      = {2026}
+}
+```
+
+GitHub's **"Cite this repository"** button (right sidebar) reads the same
+entry from [`CITATION.cff`](CITATION.cff).
 
 ## License
 
