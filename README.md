@@ -1,9 +1,12 @@
 # ECFI — Epistemic–Compute Feedback Instability
 
-Reference implementation for *"Epistemic–Compute Feedback Instability in
-Networked AI Agents: When Local Verification Destabilizes the Network."*
+## Core Mechanism
 
-It contains three things: the analytical core (Theorem 1 and the
+1. Uncertainty & Verification: When an agent encounters uncertain evidence or conflicting sources, it requests proof or verification from a shared service.
+2. Congestion: Increased verification demand saturates the shared verifiers, leading to queueing and compute capacity limits.
+3. Epistemic Degradation: As queue waits increase and deadlines pass, answers escape unchecked via unverified fallbacks, causing error propagation and higher future uncertainty across the network.
+
+ECFI contains three things: the analytical core (Theorem 1 and the
 verification–congestion paradox), a discrete-event testbed whose couplings are
 switchable and whose ground truth is known, and the five-stage benchmark
 (S1–S5) run end to end on that testbed.
